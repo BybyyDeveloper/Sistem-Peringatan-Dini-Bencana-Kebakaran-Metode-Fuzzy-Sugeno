@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil — IoT Fire Detection</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#0F172A;">
+
+<div id="loading-screen">
+  <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#ef4444,#f97316);display:flex;align-items:center;justify-content:center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
+  <svg class="animate-spin w-5 h-5 mt-2" style="color:#f87171;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+  <p style="color:rgba(255,255,255,0.4);font-size:14px;">Memuat sistem...</p>
+</div>
+
+<aside id="sidebar"></aside>
+
+<main id="main-content" class="p-6 space-y-6">
+  <div>
+    <h1 class="text-white text-2xl font-bold">Profil Pengguna</h1>
+    <p style="color:rgba(255,255,255,0.4);font-size:14px;margin-top:2px;">Kelola informasi akun Anda</p>
+  </div>
+
+  <div id="prof-msg" class="hidden flex items-center gap-2 rounded-xl px-4 py-3 text-sm" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:#34d399;"></div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Avatar card -->
+    <div class="card flex flex-col items-center gap-4">
+      <div id="avatar-circle" style="width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#f97316);display:flex;align-items:center;justify-content:center;color:#fff;font-size:36px;font-weight:700;box-shadow:0 0 40px rgba(239,68,68,0.3);">U</div>
+      <div class="text-center">
+        <p id="av-nama" class="text-white font-semibold text-lg">—</p>
+        <span id="av-role" style="display:inline-block;margin-top:4px;padding:2px 12px;border-radius:99px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:12px;">—</span>
+      </div>
+      <div class="w-full space-y-2" style="font-size:13px;">
+        <div class="flex items-center gap-2" style="color:rgba(255,255,255,0.5);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          <span id="av-email" class="truncate">—</span>
+        </div>
+        <div class="flex items-center gap-2" style="color:rgba(255,255,255,0.5);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span id="av-status">Akun Aktif</span>
+        </div>
+        <div class="flex items-center gap-2" style="color:rgba(255,255,255,0.5);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span id="av-login" style="font-size:11px;">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info + password -->
+    <div class="md:col-span-2 space-y-4">
+
+      <!-- Profil info -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-white font-semibold flex items-center gap-2" style="font-size:14px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Informasi Profil
+          </h3>
+          <button id="edit-toggle" onclick="toggleEdit()" style="font-size:12px;color:rgba(255,255,255,0.5);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label style="color:rgba(255,255,255,0.4);font-size:12px;display:block;margin-bottom:6px;">Nama Lengkap</label>
+            <p id="view-nama" style="color:#fff;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:10px 16px;font-size:14px;">—</p>
+            <input id="edit-nama" type="text" class="inp hidden" />
+          </div>
+          <div>
+            <label style="color:rgba(255,255,255,0.4);font-size:12px;display:block;margin-bottom:6px;">Email</label>
+            <p id="view-email" style="color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:10px 16px;font-size:14px;">—</p>
+          </div>
+          <div>
+            <label style="color:rgba(255,255,255,0.4);font-size:12px;display:block;margin-bottom:6px;">Role</label>
+            <p id="view-role" style="color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:10px 16px;font-size:14px;">—</p>
+          </div>
+          <button id="save-prof-btn" onclick="saveProfile()" class="btn-primary hidden w-full justify-center">Simpan Perubahan</button>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-white font-semibold flex items-center gap-2" style="font-size:14px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>
+            Keamanan
+          </h3>
+          <button onclick="togglePass()" style="font-size:12px;color:rgba(255,255,255,0.5);background:none;border:none;cursor:pointer;" id="pass-toggle-btn">Ganti Password</button>
+        </div>
+        <div id="pass-form" class="hidden space-y-3">
+          <div>
+            <label style="color:rgba(255,255,255,0.4);font-size:12px;display:block;margin-bottom:6px;">Password Lama</label>
+            <input id="old-pass" type="password" class="inp" />
+          </div>
+          <div>
+            <label style="color:rgba(255,255,255,0.4);font-size:12px;display:block;margin-bottom:6px;">Password Baru</label>
+            <input id="new-pass" type="password" class="inp" />
+          </div>
+          <div>
+            <label style="color:rgba(255,255,255,0.4);font-size:12px;display:block;margin-bottom:6px;">Konfirmasi Password Baru</label>
+            <input id="conf-pass" type="password" class="inp" />
+          </div>
+          <div id="pass-err" class="hidden text-xs rounded-xl px-3 py-2" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;"></div>
+          <button onclick="changePassword()" class="btn-primary w-full justify-center">Ubah Password</button>
+        </div>
+        <p id="pass-hint" style="color:rgba(255,255,255,0.3);font-size:14px;">Klik "Ganti Password" untuk mengubah kata sandi Anda</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/fuzzy.js"></script>
+<script src="js/common.js"></script>
+<script>
+const ROLES = { admin:"Administrator", petugas:"Petugas", user:"Pengguna" };
+let editMode = false, passMode = false;
+
+function toggleEdit() {
+  editMode = !editMode;
+  document.getElementById("view-nama").classList.toggle("hidden", editMode);
+  document.getElementById("edit-nama").classList.toggle("hidden", !editMode);
+  document.getElementById("save-prof-btn").classList.toggle("hidden", !editMode);
+  document.getElementById("edit-toggle").querySelector("span, svg + *") ;
+  document.getElementById("edit-toggle").lastChild.textContent = editMode ? " Batal" : " Edit";
+}
+
+function togglePass() {
+  passMode = !passMode;
+  document.getElementById("pass-form").classList.toggle("hidden", !passMode);
+  document.getElementById("pass-hint").classList.toggle("hidden", passMode);
+  document.getElementById("pass-toggle-btn").textContent = passMode ? "Batal" : "Ganti Password";
+}
+
+function showMsg(text, type="ok") {
+  const el = document.getElementById("prof-msg");
+  el.textContent = text;
+  el.style.background = type==="ok" ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)";
+  el.style.borderColor= type==="ok" ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)";
+  el.style.color      = type==="ok" ? "#34d399" : "#f87171";
+  el.classList.remove("hidden");
+  setTimeout(()=>el.classList.add("hidden"),3000);
+}
+
+async function saveProfile() {
+  const nama = document.getElementById("edit-nama").value.trim();
+  if (!nama) return;
+  const btn = document.getElementById("save-prof-btn");
+  btn.disabled = true; btn.textContent = "Menyimpan...";
+  try {
+    await db.ref(`users/${_currentUser.uid}`).update({ nama });
+    document.getElementById("view-nama").textContent = nama;
+    document.getElementById("av-nama").textContent = nama;
+    toggleEdit();
+    showMsg("Profil berhasil diperbarui");
+  } catch { showMsg("Gagal menyimpan profil","err"); }
+  finally { btn.disabled=false; btn.textContent="Simpan Perubahan"; }
+}
+
+async function changePassword() {
+  const oldP = document.getElementById("old-pass").value;
+  const newP = document.getElementById("new-pass").value;
+  const conP = document.getElementById("conf-pass").value;
+  const errEl= document.getElementById("pass-err");
+  errEl.classList.add("hidden");
+
+  if (newP !== conP) { errEl.textContent="Password baru tidak cocok"; errEl.classList.remove("hidden"); return; }
+  if (newP.length < 6){ errEl.textContent="Password minimal 6 karakter"; errEl.classList.remove("hidden"); return; }
+
+  try {
+    const cred = firebase.auth.EmailAuthProvider.credential(_currentUser.email, oldP);
+    await _currentUser.reauthenticateWithCredential(cred);
+    await _currentUser.updatePassword(newP);
+    document.getElementById("old-pass").value="";
+    document.getElementById("new-pass").value="";
+    document.getElementById("conf-pass").value="";
+    togglePass();
+    showMsg("Password berhasil diubah");
+  } catch(e){
+    const msgs={"auth/wrong-password":"Password lama salah","auth/invalid-credential":"Password lama salah"};
+    errEl.textContent=msgs[e.code]||"Gagal mengubah password";
+    errEl.classList.remove("hidden");
+  }
+}
+
+requireAuth((profile) => {
+  const first = (profile.nama||"U").charAt(0).toUpperCase();
+  document.getElementById("avatar-circle").textContent = first;
+  document.getElementById("av-nama").textContent     = profile.nama;
+  document.getElementById("av-role").textContent     = ROLES[profile.role]||profile.role;
+  document.getElementById("av-email").textContent    = profile.email;
+  document.getElementById("av-status").textContent   = profile.aktif ? "Akun Aktif" : "Akun Nonaktif";
+  if (profile.loginTerakhir)
+    document.getElementById("av-login").textContent  = new Date(profile.loginTerakhir).toLocaleString("id-ID");
+
+  document.getElementById("view-nama").textContent   = profile.nama;
+  document.getElementById("edit-nama").value         = profile.nama;
+  document.getElementById("view-email").textContent  = profile.email;
+  document.getElementById("view-role").textContent   = ROLES[profile.role]||profile.role;
+});
+</script>
+</body>
+</html>

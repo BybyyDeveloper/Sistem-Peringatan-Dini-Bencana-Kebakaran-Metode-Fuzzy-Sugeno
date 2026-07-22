@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pengaturan — IoT Fire Detection</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#0F172A;">
+
+<div id="loading-screen">
+  <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#ef4444,#f97316);display:flex;align-items:center;justify-content:center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
+  <svg class="animate-spin w-5 h-5 mt-2" style="color:#f87171;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+  <p style="color:rgba(255,255,255,0.4);font-size:14px;">Memuat sistem...</p>
+</div>
+
+<aside id="sidebar"></aside>
+
+<main id="main-content" class="p-6 space-y-6">
+  <div>
+    <h1 class="text-white text-2xl font-bold">Pengaturan Sistem</h1>
+    <p style="color:rgba(255,255,255,0.4);font-size:14px;margin-top:2px;">Konfigurasi parameter sistem deteksi kebakaran</p>
+  </div>
+
+  <div id="save-msg" class="hidden flex items-center gap-2 rounded-xl px-4 py-3 text-sm" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:#34d399;">
+    ✓ Pengaturan berhasil disimpan ke Firebase
+  </div>
+
+  <!-- Dynamic Threshold Section -->
+  <div style="border-radius:16px;border:1px solid rgba(249,115,22,0.2);background:rgba(249,115,22,0.05);padding:20px;" class="space-y-5">
+    <div class="flex items-center gap-3">
+      <div style="width:36px;height:36px;border-radius:10px;background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.2);display:flex;align-items:center;justify-content:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      </div>
+      <div>
+        <p class="text-white font-semibold" style="font-size:14px;">Dynamic Threshold — Fuzzy Sugeno</p>
+        <p style="color:rgba(255,255,255,0.4);font-size:12px;">Batas bawah &amp; atas menentukan himpunan Rendah / Sedang / Tinggi pada setiap sensor</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+      <!-- Suhu -->
+      <div class="space-y-3">
+        <h3 style="color:rgba(255,255,255,0.6);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:500;">🌡 Suhu (°C)</h3>
+        <div class="card">
+          <label style="color:#fff;font-size:13px;font-weight:500;">Batas Bawah (suhuMin)</label>
+          <div class="flex items-center gap-3 mt-2">
+            <input type="range" id="suhuMin" min="10" max="40" step="1" oninput="syncSlider('suhuMin')" class="flex-1" />
+            <span id="suhuMin-display" style="font-family:monospace;font-size:14px;color:#fff;min-width:60px;text-align:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:4px 10px;">26°C</span>
+          </div>
+        </div>
+        <div class="card">
+          <label style="color:#fff;font-size:13px;font-weight:500;">Batas Atas (suhuMax)</label>
+          <div class="flex items-center gap-3 mt-2">
+            <input type="range" id="suhuMax" min="20" max="80" step="1" oninput="syncSlider('suhuMax')" class="flex-1" />
+            <span id="suhuMax-display" style="font-family:monospace;font-size:14px;color:#fff;min-width:60px;text-align:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:4px 10px;">32°C</span>
+          </div>
+        </div>
+        <div id="suhu-preview" style="border-radius:10px;border:1px solid rgba(59,130,246,0.2);background:rgba(59,130,246,0.05);padding:8px 12px;font-size:11px;color:rgba(255,255,255,0.4);"></div>
+      </div>
+
+      <!-- Kelembaban -->
+      <div class="space-y-3">
+        <h3 style="color:rgba(255,255,255,0.6);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:500;">💧 Kelembaban (%)</h3>
+        <div class="card">
+          <label style="color:#fff;font-size:13px;font-weight:500;">Batas Bawah (humidMin)</label>
+          <div class="flex items-center gap-3 mt-2">
+            <input type="range" id="humidMin" min="10" max="60" step="1" oninput="syncSlider('humidMin')" class="flex-1" />
+            <span id="humidMin-display" style="font-family:monospace;font-size:14px;color:#fff;min-width:60px;text-align:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:4px 10px;">40%</span>
+          </div>
+        </div>
+        <div class="card">
+          <label style="color:#fff;font-size:13px;font-weight:500;">Batas Atas (humidMax)</label>
+          <div class="flex items-center gap-3 mt-2">
+            <input type="range" id="humidMax" min="30" max="95" step="1" oninput="syncSlider('humidMax')" class="flex-1" />
+            <span id="humidMax-display" style="font-family:monospace;font-size:14px;color:#fff;min-width:60px;text-align:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:4px 10px;">60%</span>
+          </div>
+        </div>
+        <div id="humid-preview" style="border-radius:10px;border:1px solid rgba(59,130,246,0.2);background:rgba(59,130,246,0.05);padding:8px 12px;font-size:11px;color:rgba(255,255,255,0.4);"></div>
+      </div>
+
+      <!-- Asap -->
+      <div class="space-y-3">
+        <h3 style="color:rgba(255,255,255,0.6);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:500;">💨 Asap (ppm)</h3>
+        <div class="card">
+          <label style="color:#fff;font-size:13px;font-weight:500;">Batas Bawah (asapMin)</label>
+          <div class="flex items-center gap-3 mt-2">
+            <input type="range" id="asapMin" min="50" max="400" step="10" oninput="syncSlider('asapMin')" class="flex-1" />
+            <span id="asapMin-display" style="font-family:monospace;font-size:14px;color:#fff;min-width:70px;text-align:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:4px 10px;">200ppm</span>
+          </div>
+        </div>
+        <div class="card">
+          <label style="color:#fff;font-size:13px;font-weight:500;">Batas Atas (asapMax)</label>
+          <div class="flex items-center gap-3 mt-2">
+            <input type="range" id="asapMax" min="100" max="900" step="10" oninput="syncSlider('asapMax')" class="flex-1" />
+            <span id="asapMax-display" style="font-family:monospace;font-size:14px;color:#fff;min-width:70px;text-align:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:4px 10px;">400ppm</span>
+          </div>
+        </div>
+        <div id="asap-preview" style="border-radius:10px;border:1px solid rgba(59,130,246,0.2);background:rgba(59,130,246,0.05);padding:8px 12px;font-size:11px;color:rgba(255,255,255,0.4);"></div>
+      </div>
+    </div>
+
+    <!-- Config preview -->
+    <div style="border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.2);padding:12px;">
+      <p style="color:rgba(255,255,255,0.3);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Konfigurasi aktif (config object)</p>
+      <code id="config-preview" style="color:#34d399;font-size:12px;font-family:monospace;word-break:break-all;"></code>
+    </div>
+  </div>
+
+  <!-- Preferensi -->
+  <div class="space-y-3">
+    <h3 style="color:rgba(255,255,255,0.6);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:500;">Preferensi Sistem</h3>
+
+    <div class="card flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        <div>
+          <p class="text-white font-medium" style="font-size:13px;">Volume Alarm</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3" style="min-width:200px;">
+        <input type="range" id="volumeAlarm" min="0" max="100" step="1" oninput="syncSlider('volumeAlarm')" class="flex-1" />
+        <span id="volumeAlarm-display" style="min-width:50px;text-align:center;font-size:13px;color:#fff;">70%</span>
+      </div>
+    </div>
+
+    <div class="card flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <div>
+          <p class="text-white font-medium" style="font-size:13px;">Dark Mode Default</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:11px;">Aktifkan mode gelap saat pertama kali dibuka</p>
+        </div>
+      </div>
+      <button onclick="toggleBool('darkModeDefault')" id="toggle-darkMode" style="position:relative;width:48px;height:24px;border-radius:99px;border:none;cursor:pointer;transition:background 0.2s;" class="bg-red-500"></button>
+    </div>
+
+    <div class="card flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-1 A9 9 0 0 1 20.49 15"/></svg>
+        <div>
+          <p class="text-white font-medium" style="font-size:13px;">Auto Refresh</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:11px;">Perbarui data sensor secara otomatis</p>
+        </div>
+      </div>
+      <button onclick="toggleBool('autoRefresh')" id="toggle-autoRefresh" style="position:relative;width:48px;height:24px;border-radius:99px;border:none;cursor:pointer;transition:background 0.2s;" class="bg-red-500"></button>
+    </div>
+  </div>
+
+  <!-- ── Telegram Notifikasi ── -->
+  <div class="space-y-3">
+    <h3 style="color:rgba(255,255,255,0.6);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:500;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M21.5 2L2 9l7 3.5L18.5 7 13 16.5l-4-7.5L2 9l19.5-7z"/></svg>
+      Telegram Notifikasi
+    </h3>
+
+    <div style="border-radius:16px;border:1px solid rgba(37,99,235,0.25);background:rgba(37,99,235,0.05);padding:20px;" class="space-y-4">
+
+      <!-- Enable toggle -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(37,99,235,0.12);border:1px solid rgba(37,99,235,0.25);display:flex;align-items:center;justify-content:center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M21.5 2L2 9l7 3.5L18.5 7 13 16.5l-4-7.5L2 9l19.5-7z"/></svg>
+          </div>
+          <div>
+            <p class="text-white font-semibold" style="font-size:14px;">Aktifkan Notifikasi Telegram</p>
+            <p style="color:rgba(255,255,255,0.4);font-size:12px;">Kirim peringatan otomatis ke bot saat bahaya terdeteksi</p>
+          </div>
+        </div>
+        <button onclick="toggleTg('aktif')" id="tg-toggle-aktif"
+          style="position:relative;width:48px;height:24px;border-radius:99px;border:none;cursor:pointer;transition:background 0.2s;background:rgba(255,255,255,0.1);">
+          <span id="tg-knob-aktif" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left 0.2s;"></span>
+        </button>
+      </div>
+
+      <!-- Bot Token -->
+      <div>
+        <label style="color:rgba(255,255,255,0.6);font-size:12px;font-weight:500;display:block;margin-bottom:6px;">
+          Bot Token
+          <span style="color:rgba(255,255,255,0.3);font-weight:400;margin-left:6px;">Dari @BotFather di Telegram</span>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" id="tg-token" placeholder="123456789:AABBccDDeEFFgg..." class="inp" style="font-family:monospace;font-size:12px;" />
+          <button onclick="toggleShowToken()" id="tg-show-btn" class="btn-ghost" style="flex-shrink:0;padding:10px 12px;" title="Tampilkan/sembunyikan">
+            <svg id="tg-eye-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:5px;">
+          Buat bot baru: buka Telegram → cari <b style="color:rgba(255,255,255,0.4);">@BotFather</b> → kirim <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;">/newbot</code>
+        </p>
+      </div>
+
+      <!-- Chat ID -->
+      <div>
+        <label style="color:rgba(255,255,255,0.6);font-size:12px;font-weight:500;display:block;margin-bottom:6px;">
+          Chat ID / Group ID
+          <span style="color:rgba(255,255,255,0.3);font-weight:400;margin-left:6px;">Tujuan pesan dikirim</span>
+        </label>
+        <input type="text" id="tg-chatid" placeholder="-1001234567890 atau 987654321" class="inp" style="font-family:monospace;font-size:13px;" />
+        <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:5px;">
+          Cara dapat Chat ID: tambahkan <b style="color:rgba(255,255,255,0.4);">@userinfobot</b> ke grup → kirim pesan → lihat ID-nya. Untuk pribadi, kirim pesan ke bot lalu buka:
+          <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;word-break:break-all;">api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>
+        </p>
+      </div>
+
+      <!-- Bot Commands polling -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);display:flex;align-items:center;justify-content:center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-1"/></svg>
+          </div>
+          <div>
+            <p class="text-white font-semibold" style="font-size:13px;">Aktifkan Bot Commands</p>
+            <p style="color:rgba(255,255,255,0.4);font-size:11px;">
+              Bot menjawab /status, /laporan, /history, /harini, /alert, /ping, /help<br>
+              <span style="color:rgba(255,255,255,0.25);">⚠️ Dashboard harus terbuka di browser agar polling berjalan</span>
+            </p>
+          </div>
+        </div>
+        <button onclick="toggleTg('polling')" id="tg-toggle-polling"
+          style="position:relative;width:48px;height:24px;border-radius:99px;border:none;cursor:pointer;transition:background 0.2s;background:rgba(255,255,255,0.1);flex-shrink:0;">
+          <span id="tg-knob-polling" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left 0.2s;"></span>
+        </button>
+      </div>
+
+      <!-- Level notifikasi -->
+      <div>
+        <p style="color:rgba(255,255,255,0.6);font-size:12px;font-weight:500;margin-bottom:10px;">Kirim notifikasi saat status:</p>
+        <div class="flex flex-wrap gap-3">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border-radius:10px;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.06);">
+            <input type="checkbox" id="tg-lvl-waspada" style="accent-color:#fbbf24;width:15px;height:15px;" />
+            <span style="color:#fbbf24;font-size:13px;font-weight:600;">⚠️ WASPADA</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border-radius:10px;border:1px solid rgba(249,115,22,0.25);background:rgba(249,115,22,0.06);">
+            <input type="checkbox" id="tg-lvl-bahaya" checked style="accent-color:#fb923c;width:15px;height:15px;" />
+            <span style="color:#fb923c;font-size:13px;font-weight:600;">🔥 BAHAYA</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border-radius:10px;border:1px solid rgba(239,68,68,0.25);background:rgba(239,68,68,0.06);">
+            <input type="checkbox" id="tg-lvl-kebakaran" checked style="accent-color:#f87171;width:15px;height:15px;" />
+            <span style="color:#f87171;font-size:13px;font-weight:600;">🚨 KEBAKARAN</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Action buttons + status -->
+      <div class="flex flex-wrap items-center gap-3">
+        <button onclick="saveTelegram()" id="tg-save-btn" class="btn-primary" style="font-size:13px;padding:9px 18px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span id="tg-save-txt">Simpan Telegram</span>
+        </button>
+        <button onclick="kirimTes()" id="tg-test-btn" class="btn-ghost" style="font-size:13px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2L2 9l7 3.5L18.5 7 13 16.5l-4-7.5L2 9l19.5-7z"/></svg>
+          <span id="tg-test-txt">Kirim Tes</span>
+        </button>
+        <span id="tg-status" style="font-size:12px;"></span>
+      </div>
+
+      <!-- Info box -->
+      <div style="border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.2);padding:12px 14px;font-size:11.5px;color:rgba(255,255,255,0.35);line-height:1.8;">
+        ℹ️ <b style="color:rgba(255,255,255,0.5);">Bot token</b> disimpan ke Firebase — tidak tertanam di kode halaman.<br>
+        📡 <b style="color:rgba(255,255,255,0.5);">Bot Commands</b> bekerja via polling dari browser. Buka halaman dashboard dan biarkan tab tetap aktif agar bot bisa menjawab.<br>
+        🔐 Pastikan <b style="color:rgba(255,255,255,0.5);">Firebase Rules</b> mengizinkan baca node
+        <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;">telegram/</code>
+        hanya untuk user yang login.<br>
+        🤖 Daftarkan commands ke <b style="color:rgba(255,255,255,0.5);">@BotFather</b> via
+        <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;">/setcommands</code>
+        agar muncul di menu Telegram.
+      </div>
+    </div>
+  </div>
+
+  <button onclick="saveSettings()" id="save-btn" class="btn-primary">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+    <span id="save-btn-txt">Simpan Pengaturan</span>
+  </button>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/fuzzy.js"></script>
+<script src="js/common.js"></script>
+<script>
+const SLIDERS = {
+  suhuMin:      { unit:"°C",  default:26 },
+  suhuMax:      { unit:"°C",  default:32 },
+  humidMin:     { unit:"%",   default:40 },
+  humidMax:     { unit:"%",   default:60 },
+  asapMin:      { unit:"ppm", default:200 },
+  asapMax:      { unit:"ppm", default:400 },
+  volumeAlarm:  { unit:"%",   default:70 },
+};
+const BOOLS = { darkModeDefault: true, autoRefresh: true };
+let settings = {
+  suhuMin:26, suhuMax:32, humidMin:40, humidMax:60,
+  asapMin:200, asapMax:400, volumeAlarm:70,
+  darkModeDefault:true, autoRefresh:true,
+};
+
+function syncSlider(id) {
+  const val = parseInt(document.getElementById(id).value);
+  settings[id] = val;
+  const cfg = SLIDERS[id];
+  document.getElementById(id+"-display").textContent = val + cfg.unit;
+  updatePreviews();
+  updateConfigPreview();
+}
+
+function toggleBool(key) {
+  settings[key] = !settings[key];
+  updateToggle(key);
+}
+
+function updateToggle(key) {
+  const btn = document.getElementById("toggle-"+key);
+  if (!btn) return;
+  const on = settings[key];
+  btn.style.background = on ? "#ef4444" : "rgba(255,255,255,0.1)";
+  btn.innerHTML = `<span style="position:absolute;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left 0.2s;left:${on?'27px':'3px'};"></span>`;
+}
+
+function updatePreviews() {
+  const fmtP = (min, max, unit) =>
+    `Rendah &lt; ${min}${unit} &nbsp;·&nbsp; Sedang ${min}–${max}${unit} &nbsp;·&nbsp; Tinggi &gt; ${max}${unit}`;
+  document.getElementById("suhu-preview").innerHTML  = fmtP(settings.suhuMin,  settings.suhuMax,  "°C");
+  document.getElementById("humid-preview").innerHTML = fmtP(settings.humidMin, settings.humidMax, "%");
+  document.getElementById("asap-preview").innerHTML  = fmtP(settings.asapMin,  settings.asapMax,  " ppm");
+}
+
+function updateConfigPreview() {
+  document.getElementById("config-preview").textContent =
+    `{ suhuMin: ${settings.suhuMin}, suhuMax: ${settings.suhuMax}, humidMin: ${settings.humidMin}, humidMax: ${settings.humidMax}, asapMin: ${settings.asapMin}, asapMax: ${settings.asapMax} }`;
+}
+
+function loadToUI() {
+  Object.keys(SLIDERS).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = settings[id];
+    document.getElementById(id+"-display").textContent = settings[id] + SLIDERS[id].unit;
+  });
+  Object.keys(BOOLS).forEach(k => updateToggle(k));
+  updatePreviews();
+  updateConfigPreview();
+}
+
+async function saveSettings() {
+  const btn = document.getElementById("save-btn");
+  const txt = document.getElementById("save-btn-txt");
+  btn.disabled=true; txt.textContent="Menyimpan...";
+  try {
+    await db.ref("settings").set(settings);
+
+    // Catat perubahan threshold ke thresholdLog/ (dipakai di halaman Laporan)
+    const now = new Date();
+    const logEntry = {
+      timestamp:  Date.now(),
+      tanggal:    now.toLocaleDateString("id-ID"),
+      jam:        now.toLocaleTimeString("id-ID"),
+      oleh:       _currentProfile?.nama || _currentUser?.email || "Unknown",
+      uid:        _currentUser?.uid || "",
+      suhuMin:    settings.suhuMin,
+      suhuMax:    settings.suhuMax,
+      asapMin:    settings.asapMin,
+      asapMax:    settings.asapMax,
+    };
+    await db.ref(`thresholdLog/${Date.now()}`).set(logEntry);
+
+    if (_currentUser) await logActivity(_currentUser.uid, "Edit Pengaturan Threshold");
+    document.getElementById("save-msg").classList.remove("hidden");
+    setTimeout(()=>document.getElementById("save-msg").classList.add("hidden"),3000);
+  } catch(e){ showToast("Gagal menyimpan: "+e.message,"err"); }
+  finally { btn.disabled=false; txt.textContent="Simpan Pengaturan"; }
+}
+
+// ── Telegram UI helpers ──────────────────────────────────────
+let tgState = { aktif: false, polling: false };
+
+function toggleTg(key) {
+  tgState[key] = !tgState[key];
+  const knob = document.getElementById(`tg-knob-${key}`);
+  const btn  = document.getElementById(`tg-toggle-${key}`);
+  if (knob) knob.style.left  = tgState[key] ? "27px" : "3px";
+  if (btn)  btn.style.background = tgState[key] ? "#2563eb" : "rgba(255,255,255,0.1)";
+}
+
+function toggleShowToken() {
+  const inp  = document.getElementById("tg-token");
+  const icon = document.getElementById("tg-eye-icon");
+  const show = inp.type === "password";
+  inp.type   = show ? "text" : "password";
+  icon.innerHTML = show
+    ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`
+    : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+}
+
+function setTgStatus(msg, color) {
+  const el = document.getElementById("tg-status");
+  el.textContent = msg;
+  el.style.color = color;
+}
+
+function loadTgToUI(cfg) {
+  if (!cfg) return;
+  ["aktif","polling"].forEach(key => {
+    tgState[key] = !!cfg[key];
+    const knob = document.getElementById(`tg-knob-${key}`);
+    const btn  = document.getElementById(`tg-toggle-${key}`);
+    if (knob) knob.style.left      = tgState[key] ? "27px" : "3px";
+    if (btn)  btn.style.background = tgState[key] ? "#2563eb" : "rgba(255,255,255,0.1)";
+  });
+  if (cfg.token)  document.getElementById("tg-token").value  = cfg.token;
+  if (cfg.chatId) document.getElementById("tg-chatid").value = cfg.chatId;
+  if (cfg.levels) {
+    document.getElementById("tg-lvl-waspada").checked   = !!cfg.levels.waspada;
+    document.getElementById("tg-lvl-bahaya").checked    = !!cfg.levels.bahaya;
+    document.getElementById("tg-lvl-kebakaran").checked = !!cfg.levels.kebakaran;
+  }
+}
+
+async function saveTelegram() {
+  const btn = document.getElementById("tg-save-btn");
+  const txt = document.getElementById("tg-save-txt");
+  btn.disabled = true; txt.textContent = "Menyimpan...";
+  setTgStatus("", "");
+  const token  = document.getElementById("tg-token").value.trim();
+  const chatId = document.getElementById("tg-chatid").value.trim();
+  if (!token || !chatId) {
+    setTgStatus("⚠️ Token dan Chat ID wajib diisi", "#fbbf24");
+    btn.disabled = false; txt.textContent = "Simpan Telegram";
+    return;
+  }
+  const cfg = {
+    aktif:   tgState.aktif,
+    polling: tgState.polling,
+    token,
+    chatId,
+    levels: {
+      waspada:   document.getElementById("tg-lvl-waspada").checked,
+      bahaya:    document.getElementById("tg-lvl-bahaya").checked,
+      kebakaran: document.getElementById("tg-lvl-kebakaran").checked,
+    },
+  };
+  try {
+    await db.ref("telegram").set(cfg);
+    setTgStatus("✅ Tersimpan", "#34d399");
+    showToast("Pengaturan Telegram disimpan", "ok");
+  } catch(e) {
+    setTgStatus("❌ " + e.message, "#f87171");
+  }
+  btn.disabled = false; txt.textContent = "Simpan Telegram";
+}
+
+async function kirimTes() {
+  const btn = document.getElementById("tg-test-btn");
+  const txt = document.getElementById("tg-test-txt");
+  btn.disabled = true; txt.textContent = "Mengirim...";
+  setTgStatus("", "");
+  const token  = document.getElementById("tg-token").value.trim();
+  const chatId = document.getElementById("tg-chatid").value.trim();
+  if (!token || !chatId) {
+    setTgStatus("⚠️ Isi Token dan Chat ID dulu", "#fbbf24");
+    btn.disabled = false; txt.textContent = "Kirim Tes";
+    return;
+  }
+  try {
+    const res = await testTelegramAlert(token, chatId);
+    if (res.ok) setTgStatus("✅ Pesan tes berhasil dikirim!", "#34d399");
+    else        setTgStatus("❌ " + (res.description || "Gagal"), "#f87171");
+  } catch(e) {
+    setTgStatus("❌ " + e.message, "#f87171");
+  }
+  btn.disabled = false; txt.textContent = "Kirim Tes";
+}
+
+requireAuth(() => {
+  db.ref("settings").on("value", snap => {
+    if (snap.exists()) {
+      const v = snap.val();
+      Object.keys(settings).forEach(k => { if (v[k] !== undefined) settings[k] = v[k]; });
+    }
+    loadToUI();
+  });
+  db.ref("telegram").once("value", snap => {
+    loadTgToUI(snap.exists() ? snap.val() : null);
+  });
+});
+</script>
+</body>
+</html>

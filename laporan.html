@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laporan — IoT Fire Detection</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- jsPDF + AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    /* ── Tab navigation ── */
+    .lap-tabs {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .lap-tab {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 12px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.5);
+      transition: all .18s; white-space: nowrap;
+    }
+    .lap-tab:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
+    .lap-tab.active {
+      background: rgba(239,68,68,0.15);
+      border-color: rgba(239,68,68,0.35);
+      color: #f87171;
+    }
+    .lap-tab .tab-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); flex-shrink: 0; transition: background .18s;
+    }
+    .lap-tab.active .tab-dot { background: #f87171; }
+
+    /* ── Content panels ── */
+    .lap-panel { display: none; animation: fadeIn .25s ease; }
+    .lap-panel.active { display: block; }
+
+    /* ── Dark card ── */
+    .dark-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; overflow: hidden;
+    }
+    .dark-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-wrap: wrap; gap: 10px;
+    }
+    .dark-card-header .title-wrap { display: flex; align-items: center; gap: 12px; }
+    .dark-card-header .icon-box {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .dark-card-header h3 { font-size: 14px; font-weight: 700; color: #fff; margin: 0; }
+    .dark-card-header p  { font-size: 12px; color: rgba(255,255,255,0.4); margin: 0; }
+
+    /* ── Dark table ── */
+    .dark-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .dark-table thead tr { background: rgba(255,255,255,0.03); }
+    .dark-table th {
+      padding: 10px 14px; text-align: left; font-size: 10.5px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .05em;
+      color: rgba(255,255,255,0.4); border-bottom: 1px solid rgba(255,255,255,0.08);
+      white-space: nowrap;
+    }
+    .dark-table td {
+      padding: 10px 14px; color: rgba(255,255,255,0.75);
+      border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle;
+    }
+    .dark-table tbody tr:last-child td { border-bottom: none; }
+    .dark-table tbody tr:hover td { background: rgba(255,255,255,0.03); }
+    .dark-table-wrap { overflow-x: auto; }
+    .dark-table-wrap::-webkit-scrollbar { height: 4px; }
+    .dark-table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+
+    /* ── Dark filter bar ── */
+    .dark-filter {
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 12px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+    .dark-filter label { font-size: 12px; color: rgba(255,255,255,0.4); font-weight: 500; }
+    .dark-inp {
+      padding: 7px 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+      font-size: 12px; color: #fff; background: rgba(255,255,255,0.06); outline: none;
+      transition: border-color .15s;
+    }
+    .dark-inp:focus { border-color: rgba(239,68,68,0.5); background: rgba(255,255,255,0.08); }
+    .dark-inp option { background: #1e293b; }
+
+    /* ── Stat mini — dark ── */
+    .dstat {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .dstat .dstat-label { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+    .dstat .dstat-val   { font-size: 24px; font-weight: 800; margin: 0; }
+
+    /* ── Empty ── */
+    .dark-empty { padding: 40px 20px; text-align: center; color: rgba(255,255,255,0.2); font-size: 12.5px; }
+
+    /* ── Incident row ── */
+    .inc-row-header {
+      display: flex; gap: 10px; align-items: center;
+    }
+    .severity-bar {
+      height: 4px; border-radius: 99px; margin-top: 6px;
+      background: rgba(255,255,255,0.06);
+    }
+    .severity-fill { height: 100%; border-radius: 99px; }
+
+    /* ── Rekap day card ── */
+    .day-row {
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .day-row:last-child { border-bottom: none; }
+
+    /* ── Threshold log timeline ── */
+    .tl-item {
+      display: flex; gap: 14px; padding: 14px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.04); align-items: flex-start;
+    }
+    .tl-item:last-child { border-bottom: none; }
+    .tl-dot {
+      width: 10px; height: 10px; border-radius: 50%; margin-top: 3px; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body style="background:#0F172A;">
+
+<!-- Loading -->
+<div id="loading-screen">
+  <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#ef4444,#f97316);display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(239,68,68,0.4);">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+  </div>
+  <svg class="animate-spin w-5 h-5 mt-2" style="color:#f87171;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+  <p style="color:rgba(255,255,255,0.4);font-size:14px;">Memuat sistem...</p>
+</div>
+
+<aside id="sidebar"></aside>
+
+<main id="main-content" class="p-6 space-y-5">
+
+  <!-- ── Page Header ── -->
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <p style="color:rgba(255,255,255,0.35);font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">IoT Fire Detection — Fuzzy Sugeno</p>
+      <h1 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 4px;">Laporan Sistem</h1>
+      <p style="color:rgba(255,255,255,0.4);font-size:13px;margin:0;">
+        <span id="hdr-nama" style="color:rgba(255,255,255,0.65);"></span>
+        <span style="margin:0 6px;opacity:.3;">·</span>
+        <span id="hdr-date" style="color:rgba(255,255,255,0.4);"></span>
+      </p>
+    </div>
+    <span style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.22);color:#34d399;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;align-self:flex-start;">● Realtime</span>
+  </div>
+
+  <!-- ── Stat ringkasan ── -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="dstat">
+      <div class="dstat-label">Total Kejadian</div>
+      <div class="dstat-val" id="stat-total" style="color:#60a5fa;">0</div>
+    </div>
+    <div class="dstat">
+      <div class="dstat-label">Waspada</div>
+      <div class="dstat-val" id="stat-waspada" style="color:#fbbf24;">0</div>
+    </div>
+    <div class="dstat">
+      <div class="dstat-label">Kebakaran</div>
+      <div class="dstat-val" id="stat-kebakaran" style="color:#f87171;">0</div>
+    </div>
+    <div class="dstat">
+      <div class="dstat-label">Aman</div>
+      <div class="dstat-val" id="stat-aman" style="color:#34d399;">0</div>
+    </div>
+  </div>
+
+  <!-- ── Tab Navigation ── -->
+  <div class="dark-card" style="padding: 16px 20px;">
+    <p style="font-size:11px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;font-weight:500;">Pilih Laporan</p>
+    <div class="lap-tabs">
+      <button class="lap-tab active" onclick="switchTab(1)" id="tab-1">
+        <span class="tab-dot"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-1"/></svg>
+        Log Sensor
+      </button>
+      <button class="lap-tab" onclick="switchTab(2)" id="tab-2">
+        <span class="tab-dot"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+        Insiden Bahaya
+      </button>
+      <button class="lap-tab" onclick="switchTab(3)" id="tab-3">
+        <span class="tab-dot"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Rekap Harian
+      </button>
+      <button class="lap-tab" onclick="switchTab(4)" id="tab-4">
+        <span class="tab-dot"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        Log Threshold
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL 1 — Log Sensor (semua data, dengan filter & tabel)
+       ══════════════════════════════════════════════════════════ -->
+  <div class="lap-panel active" id="panel-1">
+    <div class="dark-card">
+      <div class="dark-card-header">
+        <div class="title-wrap">
+          <div class="icon-box" style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.2);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-1"/></svg>
+          </div>
+          <div>
+            <h3>Log Sensor — Riwayat Pemantauan</h3>
+            <p>Semua pembacaan sensor dari Firebase. Total: <span id="l1-count" style="color:#60a5fa;font-weight:600;">0</span></p>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-excel" onclick="exportExcelLap1()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Excel
+          </button>
+          <button class="btn-pdf" id="btn-pdf-1" onclick="cetakPDF(1)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="dark-filter">
+        <label>Dari:</label>
+        <input type="date" id="l1-from" class="dark-inp" />
+        <label>Sampai:</label>
+        <input type="date" id="l1-to" class="dark-inp" />
+        <select id="l1-status" class="dark-inp">
+          <option value="">Semua Status</option>
+          <option value="AMAN">AMAN</option>
+          <option value="WASPADA">WASPADA</option>
+          <option value="BAHAYA">BAHAYA</option>
+          <option value="KEBAKARAN">KEBAKARAN</option>
+        </select>
+        <button class="btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="filterLap1()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filter
+        </button>
+        <button class="btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="resetFilterLap1()">Reset</button>
+      </div>
+
+      <div class="dark-table-wrap">
+        <table class="dark-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Tanggal</th>
+              <th>Jam</th>
+              <th>Suhu (°C)</th>
+              <th>Kelembaban (%)</th>
+              <th>Asap (ppm)</th>
+              <th>Api</th>
+              <th>Nilai Fuzzy</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-1">
+            <tr><td colspan="9" class="dark-empty">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL 2 — Insiden Bahaya (WASPADA/BAHAYA/KEBAKARAN)
+       Beda dari Laporan 1: fokus pada insiden kritis saja,
+       dengan ringkasan risiko, severity bar, dan sorotan api.
+       ══════════════════════════════════════════════════════════ -->
+  <div class="lap-panel" id="panel-2">
+    <!-- Ringkasan insiden -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" style="margin-bottom:14px;">
+      <div class="dstat">
+        <div class="dstat-label">Total Insiden</div>
+        <div class="dstat-val" id="inc-total" style="color:#f87171;">0</div>
+      </div>
+      <div class="dstat">
+        <div class="dstat-label">Api Terdeteksi</div>
+        <div class="dstat-val" id="inc-fire" style="color:#fb923c;">0</div>
+      </div>
+      <div class="dstat">
+        <div class="dstat-label">Suhu Tertinggi</div>
+        <div class="dstat-val" id="inc-maxsuhu" style="color:#fbbf24;font-size:18px;padding-top:4px;">—</div>
+      </div>
+      <div class="dstat">
+        <div class="dstat-label">Asap Tertinggi</div>
+        <div class="dstat-val" id="inc-maxasap" style="color:#a78bfa;font-size:18px;padding-top:4px;">—</div>
+      </div>
+    </div>
+
+    <div class="dark-card">
+      <div class="dark-card-header">
+        <div class="title-wrap">
+          <div class="icon-box" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.2);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <h3>Insiden Bahaya — Waspada, Bahaya &amp; Kebakaran</h3>
+            <p>Hanya kejadian yang melampaui batas aman. Total: <span id="l2-count" style="color:#f87171;font-weight:600;">0</span></p>
+          </div>
+        </div>
+        <button class="btn-pdf" id="btn-pdf-2" onclick="cetakPDF(2)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> PDF
+        </button>
+      </div>
+
+      <!-- Incident list -->
+      <div id="inc-list">
+        <div class="dark-empty">Memuat data...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL 3 — Rekapitulasi Harian
+       ══════════════════════════════════════════════════════════ -->
+  <div class="lap-panel" id="panel-3">
+    <div class="dark-card">
+      <div class="dark-card-header">
+        <div class="title-wrap">
+          <div class="icon-box" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.2);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div>
+            <h3>Rekapitulasi Harian</h3>
+            <p>Ringkasan suhu, asap, dan kejadian per hari</p>
+          </div>
+        </div>
+        <button class="btn-pdf" id="btn-pdf-3" onclick="cetakPDF(3)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> PDF
+        </button>
+      </div>
+
+      <div id="day-list">
+        <div class="dark-empty">Memuat data...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL 4 — Log Perubahan Threshold
+       ══════════════════════════════════════════════════════════ -->
+  <div class="lap-panel" id="panel-4">
+    <div class="dark-card">
+      <div class="dark-card-header">
+        <div class="title-wrap">
+          <div class="icon-box" style="background:rgba(147,51,234,0.12);border:1px solid rgba(147,51,234,0.22);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          </div>
+          <div>
+            <h3>Log Perubahan Threshold</h3>
+            <p>Riwayat perubahan batas parameter sistem. Total: <span id="l4-count" style="color:#a78bfa;font-weight:600;">0</span></p>
+          </div>
+        </div>
+        <button class="btn-pdf" id="btn-pdf-4" onclick="cetakPDF(4)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> PDF
+        </button>
+      </div>
+
+      <div id="tl-list">
+        <div class="dark-empty">Belum ada perubahan threshold. Simpan pengaturan untuk mencatat log.</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ════ FIREBASE ════ -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/fuzzy.js"></script>
+<script src="js/common.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+<script>
+// ── Data stores ────────────────────────────────────────────────
+let allHistory   = [];
+let allThreshold = [];
+let lap1Filtered = [];
+let _printNama   = "";
+let _activeTab   = 1;
+
+// ── Tab switch ─────────────────────────────────────────────────
+function switchTab(n) {
+  _activeTab = n;
+  [1,2,3,4].forEach(i => {
+    document.getElementById(`tab-${i}`).classList.toggle("active", i === n);
+    document.getElementById(`panel-${i}`).classList.toggle("active", i === n);
+  });
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function getTanggal(r) {
+  if (r.tanggal) return r.tanggal;
+  if (r.timestamp) return new Date(r.timestamp).toLocaleDateString("id-ID");
+  return "-";
+}
+function getJam(r) {
+  if (r.jam) return r.jam;
+  if (r.timestamp) return new Date(r.timestamp).toLocaleTimeString("id-ID");
+  return "-";
+}
+function fmtWaktu(r) { return getTanggal(r) + " " + getJam(r); }
+
+// Dark-theme badge
+function darkBadge(s) {
+  const map = {
+    AMAN:      "badge-aman",
+    WASPADA:   "badge-waspada",
+    BAHAYA:    "badge-bahaya",
+    KEBAKARAN: "badge-kebakaran",
+  };
+  return `<span class="badge ${map[s] || ''}">${s}</span>`;
+}
+
+// ── Stats ──────────────────────────────────────────────────────
+function renderStats() {
+  const h = allHistory;
+  document.getElementById("stat-total").textContent     = h.length;
+  document.getElementById("stat-waspada").textContent   = h.filter(r => r.status === "WASPADA").length;
+  document.getElementById("stat-kebakaran").textContent = h.filter(r => r.status === "KEBAKARAN").length;
+  document.getElementById("stat-aman").textContent      = h.filter(r => r.status === "AMAN").length;
+}
+
+// ════════════════════════════════════════
+// PANEL 1 — Log Sensor (tabel lengkap)
+// ════════════════════════════════════════
+function filterLap1() {
+  const from   = document.getElementById("l1-from").value;
+  const to     = document.getElementById("l1-to").value;
+  const status = document.getElementById("l1-status").value;
+  lap1Filtered = allHistory.filter(r => {
+    const iso = r.timestamp
+      ? new Date(r.timestamp).toISOString().slice(0,10)
+      : (r.tanggal ? r.tanggal.split("/").reverse().join("-") : "");
+    if (from && iso < from) return false;
+    if (to   && iso > to)   return false;
+    if (status && r.status !== status) return false;
+    return true;
+  });
+  renderLap1(lap1Filtered);
+}
+
+function resetFilterLap1() {
+  document.getElementById("l1-from").value = "";
+  document.getElementById("l1-to").value = new Date().toISOString().slice(0,10);
+  document.getElementById("l1-status").value = "";
+  lap1Filtered = [...allHistory];
+  renderLap1(lap1Filtered);
+}
+
+function renderLap1(data) {
+  document.getElementById("l1-count").textContent = data.length;
+  const tbody = document.getElementById("tbody-1");
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="dark-empty">Tidak ada data yang sesuai filter.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map((r, i) => `
+    <tr>
+      <td style="color:rgba(255,255,255,0.25);font-size:11px;">${i+1}</td>
+      <td style="font-size:12px;">${getTanggal(r)}</td>
+      <td style="font-size:12px;color:rgba(255,255,255,0.5);">${getJam(r)}</td>
+      <td><span style="font-weight:700;color:#f87171;">${r.suhu ?? "—"}</span></td>
+      <td><span style="font-weight:600;color:#60a5fa;">${r.kelembaban ?? "—"}</span></td>
+      <td><span style="font-weight:600;color:#fb923c;">${r.asap ?? "—"}</span></td>
+      <td>${r.api >= 1
+        ? '<span style="color:#f87171;font-weight:700;font-size:12px;">&#x1F525; Ya</span>'
+        : '<span style="color:rgba(255,255,255,0.3);font-size:12px;">— Tidak</span>'}</td>
+      <td style="color:#a78bfa;font-weight:600;">${r.fuzzy ?? "—"}</td>
+      <td>${darkBadge(r.status)}</td>
+    </tr>`).join("");
+}
+
+// ════════════════════════════════════════
+// PANEL 2 — Insiden Bahaya
+// Tampilan: severity bar + detail tiap insiden
+// ════════════════════════════════════════
+function renderLap2() {
+  const data = allHistory.filter(r => ["WASPADA","BAHAYA","KEBAKARAN"].includes(r.status));
+
+  // Summary stats
+  document.getElementById("inc-total").textContent = data.length;
+  document.getElementById("inc-fire").textContent  = data.filter(r => r.api >= 1).length;
+
+  const suhus = data.map(r => Number(r.suhu)).filter(v => !isNaN(v) && v > 0);
+  const asaps = data.map(r => Number(r.asap)).filter(v => !isNaN(v) && v > 0);
+  document.getElementById("inc-maxsuhu").textContent = suhus.length ? Math.max(...suhus) + "°C" : "—";
+  document.getElementById("inc-maxasap").textContent = asaps.length ? Math.max(...asaps) + " ppm" : "—";
+  document.getElementById("l2-count").textContent = data.length;
+
+  const container = document.getElementById("inc-list");
+  if (!data.length) {
+    container.innerHTML = `<div class="dark-empty">Tidak ada insiden bahaya tercatat.</div>`;
+    return;
+  }
+
+  // Severity: 0=WASPADA → kuning, 1=BAHAYA → oranye, 2=KEBAKARAN → merah
+  const sevColor = { WASPADA:"#fbbf24", BAHAYA:"#fb923c", KEBAKARAN:"#f87171" };
+  const sevPct   = { WASPADA: 33, BAHAYA: 66, KEBAKARAN: 100 };
+
+  container.innerHTML = data.map((r, i) => {
+    const col = sevColor[r.status]  || "#94a3b8";
+    const pct = sevPct[r.status]    || 0;
+    const maxAsap = asaps.length ? Math.max(...asaps) : 1;
+    const asapPct = r.asap ? Math.min(100, Math.round((r.asap / Math.max(maxAsap, 1)) * 100)) : 0;
+    return `
+    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.04);">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <!-- Nomor & warna severity -->
+        <div style="width:32px;height:32px;border-radius:8px;background:${col}18;border:1px solid ${col}30;
+             display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span style="color:${col};font-size:12px;font-weight:800;">${i+1}</span>
+        </div>
+
+        <!-- Tanggal & jam -->
+        <div style="min-width:130px;">
+          <p style="color:#fff;font-size:13px;font-weight:600;margin:0;">${getTanggal(r)}</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;">${getJam(r)}</p>
+        </div>
+
+        <!-- Badge status -->
+        <div>${darkBadge(r.status)}</div>
+
+        <!-- Api -->
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${r.api >= 1
+            ? `<span style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.25);color:#f87171;
+                 padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;">&#x1F525; Api Terdeteksi</span>`
+            : `<span style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.3);
+                 padding:3px 10px;border-radius:6px;font-size:11px;">Tidak Ada Api</span>`}
+        </div>
+
+        <!-- Nilai sensor -->
+        <div style="display:flex;gap:14px;margin-left:auto;flex-wrap:wrap;font-size:12px;">
+          <span style="color:rgba(255,255,255,0.4);">Suhu <span style="color:#f87171;font-weight:700;">${r.suhu ?? "—"}°C</span></span>
+          <span style="color:rgba(255,255,255,0.4);">Kel. <span style="color:#60a5fa;font-weight:600;">${r.kelembaban ?? "—"}%</span></span>
+          <span style="color:rgba(255,255,255,0.4);">Asap <span style="color:#fb923c;font-weight:700;">${r.asap ?? "—"} ppm</span></span>
+          <span style="color:rgba(255,255,255,0.4);">Fuzzy <span style="color:#a78bfa;font-weight:700;">${r.fuzzy ?? "—"}</span></span>
+        </div>
+      </div>
+
+      <!-- Severity bar -->
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:10px;color:rgba(255,255,255,0.25);width:70px;flex-shrink:0;">Tingkat risiko</span>
+        <div style="flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,0.06);">
+          <div style="height:100%;width:${pct}%;border-radius:99px;background:${col};opacity:.8;transition:width .5s ease;"></div>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:${col};width:28px;text-align:right;">${pct}%</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ════════════════════════════════════════
+// PANEL 3 — Rekapitulasi Harian
+// ════════════════════════════════════════
+function renderLap3() {
+  const byDay = {};
+  allHistory.forEach(r => {
+    const tgl = r.tanggal || (r.timestamp ? new Date(r.timestamp).toLocaleDateString("id-ID") : "");
+    if (!tgl) return;
+    if (!byDay[tgl]) byDay[tgl] = [];
+    byDay[tgl].push(r);
+  });
+
+  const rows = Object.entries(byDay)
+    .sort(([a], [b]) => {
+      const toISO = s => s.split("/").reverse().join("-");
+      return toISO(b).localeCompare(toISO(a));
+    })
+    .map(([tgl, items]) => {
+      const suhus = items.map(r => Number(r.suhu)).filter(v => !isNaN(v));
+      const asaps = items.map(r => Number(r.asap)).filter(v => !isNaN(v));
+      const hums  = items.map(r => Number(r.kelembaban)).filter(v => !isNaN(v));
+      const kebakaran = items.filter(r => r.status === "KEBAKARAN").length;
+      const waspada   = items.filter(r => r.status === "WASPADA").length;
+      const aman      = items.filter(r => r.status === "AMAN").length;
+      return { tgl, items,
+        maxSuhu: suhus.length ? Math.max(...suhus) : null,
+        minSuhu: suhus.length ? Math.min(...suhus) : null,
+        maxAsap: asaps.length ? Math.max(...asaps) : null,
+        avgHum:  hums.length  ? (hums.reduce((s,v)=>s+v,0)/hums.length).toFixed(0) : null,
+        kebakaran, waspada, aman, total: items.length,
+      };
+    });
+
+  const container = document.getElementById("day-list");
+  if (!rows.length) {
+    container.innerHTML = `<div class="dark-empty">Belum ada data harian.</div>`;
+    return;
+  }
+
+  // Cari maks asap global untuk bar
+  const globalMaxAsap = Math.max(...rows.map(r => r.maxAsap || 0), 1);
+
+  container.innerHTML = rows.map((r, i) => {
+    const asapPct = r.maxAsap ? Math.min(100, Math.round((r.maxAsap / globalMaxAsap) * 100)) : 0;
+    const barCol  = r.kebakaran > 0 ? "#f87171" : r.waspada > 0 ? "#fbbf24" : "#34d399";
+    return `
+    <div class="day-row">
+      <!-- Tanggal -->
+      <div style="min-width:100px;">
+        <p style="color:#fff;font-size:13px;font-weight:700;margin:0;">${r.tgl}</p>
+        <p style="color:rgba(255,255,255,0.3);font-size:11px;margin:2px 0 0;">${r.total} data</p>
+      </div>
+
+      <!-- Suhu min/max -->
+      <div style="min-width:90px;">
+        <p style="color:rgba(255,255,255,0.35);font-size:10px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 2px;">Suhu</p>
+        <p style="margin:0;font-size:12px;">
+          <span style="color:#f87171;font-weight:700;">${r.maxSuhu ?? "—"}</span>
+          <span style="color:rgba(255,255,255,0.25);margin:0 3px;">/</span>
+          <span style="color:#60a5fa;">${r.minSuhu ?? "—"}°C</span>
+        </p>
+      </div>
+
+      <!-- Kel rata-rata -->
+      <div style="min-width:80px;">
+        <p style="color:rgba(255,255,255,0.35);font-size:10px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 2px;">Kel. Rata</p>
+        <p style="color:#60a5fa;font-weight:600;font-size:13px;margin:0;">${r.avgHum ?? "—"}%</p>
+      </div>
+
+      <!-- Asap bar -->
+      <div style="flex:1;min-width:120px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.04em;">Max Asap</span>
+          <span style="font-size:11px;font-weight:700;color:#fb923c;">${r.maxAsap ?? "—"} ppm</span>
+        </div>
+        <div style="height:5px;border-radius:99px;background:rgba(255,255,255,0.06);">
+          <div style="height:100%;width:${asapPct}%;border-radius:99px;background:${barCol};"></div>
+        </div>
+      </div>
+
+      <!-- Kejadian chips -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;min-width:160px;justify-content:flex-end;">
+        ${r.kebakaran > 0 ? `<span style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.25);color:#f87171;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:600;">${r.kebakaran} Kebakaran</span>` : ""}
+        ${r.waspada   > 0 ? `<span style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.2);color:#fbbf24;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:600;">${r.waspada} Waspada</span>` : ""}
+        ${r.aman      > 0 ? `<span style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.18);color:#34d399;padding:3px 9px;border-radius:6px;font-size:11px;">${r.aman} Aman</span>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ════════════════════════════════════════
+// PANEL 4 — Threshold Log (timeline)
+// ════════════════════════════════════════
+function renderLap4() {
+  document.getElementById("l4-count").textContent = allThreshold.length;
+  const container = document.getElementById("tl-list");
+  if (!allThreshold.length) {
+    container.innerHTML = `<div class="dark-empty">Belum ada perubahan threshold. Simpan pengaturan untuk mencatat log.</div>`;
+    return;
+  }
+  container.innerHTML = allThreshold.map((r, i) => `
+    <div class="tl-item">
+      <div class="tl-dot" style="background:${i === 0 ? '#a78bfa' : 'rgba(255,255,255,0.12)'};"></div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+          <span style="color:#fff;font-size:13px;font-weight:600;">${fmtWaktu(r)}</span>
+          ${i === 0 ? '<span style="background:rgba(147,51,234,0.15);border:1px solid rgba(147,51,234,0.25);color:#a78bfa;padding:2px 8px;border-radius:5px;font-size:11px;">Terbaru</span>' : ''}
+          <span style="color:rgba(255,255,255,0.4);font-size:12px;margin-left:auto;">oleh <strong style="color:rgba(255,255,255,0.6);">${r.oleh ?? "-"}</strong></span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;">
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px 12px;">
+            <p style="color:rgba(255,255,255,0.35);font-size:10px;text-transform:uppercase;margin:0 0 3px;">Suhu Min</p>
+            <p style="color:#f87171;font-weight:700;font-size:14px;margin:0;">${r.suhuMin ?? "—"}°C</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px 12px;">
+            <p style="color:rgba(255,255,255,0.35);font-size:10px;text-transform:uppercase;margin:0 0 3px;">Suhu Max</p>
+            <p style="color:#f87171;font-weight:700;font-size:14px;margin:0;">${r.suhuMax ?? "—"}°C</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px 12px;">
+            <p style="color:rgba(255,255,255,0.35);font-size:10px;text-transform:uppercase;margin:0 0 3px;">Asap Min</p>
+            <p style="color:#fb923c;font-weight:700;font-size:14px;margin:0;">${r.asapMin ?? "—"} ppm</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px 12px;">
+            <p style="color:rgba(255,255,255,0.35);font-size:10px;text-transform:uppercase;margin:0 0 3px;">Asap Max</p>
+            <p style="color:#fb923c;font-weight:700;font-size:14px;margin:0;">${r.asapMax ?? "—"} ppm</p>
+          </div>
+        </div>
+      </div>
+    </div>`).join("");
+}
+
+// ════════════════════════════════════════
+// CETAK PDF — jsPDF + AutoTable
+// ════════════════════════════════════════
+const LAP_TITLES = {
+  1: "Log Sensor — Riwayat Pemantauan",
+  2: "Insiden Bahaya (Waspada & Kebakaran)",
+  3: "Rekapitulasi Harian",
+  4: "Log Perubahan Threshold",
+};
+
+function hitungStatistik(data) {
+  const n = data.length;
+  if (!n) return null;
+  const totalAlarm     = data.filter(r => r.status !== "AMAN").length;
+  const totalKebakaran = data.filter(r => r.status === "KEBAKARAN").length;
+  const suhus = data.map(r => Number(r.suhu)).filter(v => !isNaN(v) && v > 0);
+  const hums  = data.map(r => Number(r.kelembaban)).filter(v => !isNaN(v) && v > 0);
+  const asaps = data.map(r => Number(r.asap)).filter(v => !isNaN(v) && v > 0);
+  const avg = arr => arr.length ? (arr.reduce((s,v)=>s+v,0)/arr.length) : null;
+  return { total:n, totalAlarm, totalKebakaran,
+    avgSuhu: avg(suhus), avgHum: avg(hums), avgAsap: avg(asaps) };
+}
+
+function statusFillColor(s) {
+  return { AMAN:[220,252,231], WASPADA:[254,249,195], KEBAKARAN:[254,226,226], BAHAYA:[255,237,213] }[s] || [248,250,252];
+}
+function statusTextColor(s) {
+  return { AMAN:[22,101,52], WASPADA:[133,77,14], KEBAKARAN:[153,27,27], BAHAYA:[154,52,18] }[s] || [51,65,85];
+}
+
+async function cetakPDF(nomor) {
+  const btn = document.getElementById(`btn-pdf-${nomor}`);
+  const origHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<svg style="animation:spin .8s linear infinite;display:inline-block;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Proses...`;
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+    const pageW  = doc.internal.pageSize.getWidth();
+    const pageH  = doc.internal.pageSize.getHeight();
+    const mL = 15, mR = 15;
+    const cW = pageW - mL - mR;
+    const now = new Date();
+    const tglCetak = now.toLocaleDateString("id-ID", { day:"2-digit", month:"numeric", year:"numeric" });
+
+    let dataSet = [];
+    if (nomor === 1) dataSet = lap1Filtered.length ? lap1Filtered : allHistory;
+    else if (nomor === 2) dataSet = allHistory.filter(r => ["WASPADA","BAHAYA","KEBAKARAN"].includes(r.status));
+    else if (nomor === 3) dataSet = allHistory;
+    else dataSet = allThreshold;
+
+    // ── Header ──
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(14);
+    doc.setTextColor(30,41,59);
+    doc.text("LAPORAN SISTEM DETEKSI KEBAKARAN", pageW/2, 20, { align:"center" });
+
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(71,85,105);
+    doc.text("Integrasi IoT Menggunakan Metode Fuzzy Sugeno", pageW/2, 27, { align:"center" });
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(100,116,139);
+    doc.text(`Dicetak: ${tglCetak}  |  Oleh: ${_printNama || "-"}  |  Total Data: ${dataSet.length}`, pageW/2, 33, { align:"center" });
+
+    doc.setDrawColor(203,213,225);
+    doc.setLineWidth(0.4);
+    doc.line(mL, 37, pageW - mR, 37);
+
+    let curY = 43;
+
+    // ── Statistik (lap 1 & 2) ──
+    if (nomor === 1 || nomor === 2) {
+      const stat = hitungStatistik(dataSet);
+      if (stat) {
+        doc.setFont("helvetica","bold");
+        doc.setFontSize(10);
+        doc.setTextColor(30,41,59);
+        doc.text("Statistik", mL, curY);
+        curY += 5;
+        doc.autoTable({
+          startY: curY, head: [],
+          body: [
+            ["Total Data",           String(stat.total)],
+            ["Total Alarm",          String(stat.totalAlarm)],
+            ["Total Kebakaran",      String(stat.totalKebakaran)],
+            ["Rata-rata Suhu",       stat.avgSuhu != null ? stat.avgSuhu.toFixed(1)+"°C" : "-"],
+            ["Rata-rata Kelembaban", stat.avgHum  != null ? stat.avgHum.toFixed(1)+"%" : "-"],
+            ["Rata-rata Asap",       stat.avgAsap != null ? Math.round(stat.avgAsap)+" ppm" : "-"],
+          ],
+          margin:{left:mL,right:mR}, tableWidth:cW,
+          columnStyles:{
+            0:{cellWidth:60,fontStyle:"normal",textColor:[71,85,105],fontSize:8.5},
+            1:{cellWidth:50,fontStyle:"bold",textColor:[30,41,59],fontSize:8.5},
+          },
+          styles:{fillColor:[255,255,255],lineWidth:0,cellPadding:{top:2.5,bottom:2.5,left:2,right:2}},
+          theme:"plain",
+        });
+        curY = doc.lastAutoTable.finalY + 7;
+        doc.setDrawColor(226,232,240);
+        doc.setLineWidth(0.3);
+        doc.line(mL, curY - 2, pageW - mR, curY - 2);
+      }
+    }
+
+    // ── Judul tabel ──
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(30,41,59);
+    const tblTitle = nomor === 1 ? "Data Sensor (maks 50 baris)" :
+                     nomor === 2 ? "Daftar Insiden Bahaya" :
+                     nomor === 3 ? "Rekapitulasi Harian" : "Riwayat Perubahan Threshold";
+    doc.text(tblTitle, mL, curY);
+    curY += 4;
+
+    // ── Tabel ──
+    if (nomor === 1) {
+      const rows = dataSet.slice(0, 50);
+      doc.autoTable({
+        startY: curY,
+        head: [["Tanggal","Jam","Suhu","Kelembaban","Asap","Api","Fuzzy","Status"]],
+        body: rows.map(r => [getTanggal(r),getJam(r),r.suhu??"-",r.kelembaban??"-",r.asap??"-",r.api>=1?"Ya":"Tidak",r.fuzzy??"-",r.status||"-"]),
+        margin:{left:mL,right:mR}, tableWidth:cW,
+        headStyles:{fillColor:[30,41,59],textColor:[255,255,255],fontStyle:"bold",fontSize:8,cellPadding:{top:4,bottom:4,left:3,right:3}},
+        columnStyles:{
+          0:{cellWidth:22,fontSize:8},1:{cellWidth:20,fontSize:8},
+          2:{cellWidth:14,fontSize:8,halign:"center"},3:{cellWidth:22,fontSize:8,halign:"center"},
+          4:{cellWidth:16,fontSize:8,halign:"center"},5:{cellWidth:13,fontSize:8,halign:"center"},
+          6:{cellWidth:14,fontSize:8,halign:"center"},7:{fontSize:8,halign:"center"},
+        },
+        styles:{lineColor:[226,232,240],lineWidth:0.2,cellPadding:{top:3.5,bottom:3.5,left:3,right:3},fontSize:8,textColor:[51,65,85]},
+        alternateRowStyles:{fillColor:[248,250,252]},
+        didParseCell(d) {
+          if (d.section==="body" && d.column.index===7) {
+            d.cell.styles.fillColor = statusFillColor(String(d.cell.raw));
+            d.cell.styles.textColor = statusTextColor(String(d.cell.raw));
+            d.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
+
+    } else if (nomor === 2) {
+      doc.autoTable({
+        startY: curY,
+        head: [["Tanggal","Jam","Suhu","Kelembaban","Asap","Api","Fuzzy","Status"]],
+        body: dataSet.map(r => [getTanggal(r),getJam(r),r.suhu??"-",r.kelembaban??"-",r.asap??"-",r.api>=1?"Ya":"Tidak",r.fuzzy??"-",r.status||"-"]),
+        margin:{left:mL,right:mR}, tableWidth:cW,
+        headStyles:{fillColor:[153,27,27],textColor:[255,255,255],fontStyle:"bold",fontSize:8,cellPadding:{top:4,bottom:4,left:3,right:3}},
+        columnStyles:{
+          0:{cellWidth:22,fontSize:8},1:{cellWidth:20,fontSize:8},
+          2:{cellWidth:14,fontSize:8,halign:"center"},3:{cellWidth:22,fontSize:8,halign:"center"},
+          4:{cellWidth:16,fontSize:8,halign:"center"},5:{cellWidth:13,fontSize:8,halign:"center"},
+          6:{cellWidth:14,fontSize:8,halign:"center"},7:{fontSize:8,halign:"center"},
+        },
+        styles:{lineColor:[226,232,240],lineWidth:0.2,cellPadding:{top:3.5,bottom:3.5,left:3,right:3},fontSize:8,textColor:[51,65,85]},
+        alternateRowStyles:{fillColor:[255,247,247]},
+        didParseCell(d) {
+          if (d.section==="body" && d.column.index===7) {
+            d.cell.styles.fillColor = statusFillColor(String(d.cell.raw));
+            d.cell.styles.textColor = statusTextColor(String(d.cell.raw));
+            d.cell.styles.fontStyle = "bold";
+          }
+          if (d.section==="body" && d.column.index===5 && String(d.cell.raw)==="Ya") {
+            d.cell.styles.textColor = [153,27,27];
+            d.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
+
+    } else if (nomor === 3) {
+      const byDay = {};
+      allHistory.forEach(r => {
+        const tgl = r.tanggal||(r.timestamp?new Date(r.timestamp).toLocaleDateString("id-ID"):"");
+        if (!tgl) return;
+        if (!byDay[tgl]) byDay[tgl] = [];
+        byDay[tgl].push(r);
+      });
+      const r3 = Object.entries(byDay)
+        .sort(([a],[b])=>{ const f=s=>s.split("/").reverse().join("-"); return f(b).localeCompare(f(a)); })
+        .map(([tgl,items])=>{
+          const s=items.map(r=>Number(r.suhu)).filter(v=>!isNaN(v));
+          const a=items.map(r=>Number(r.asap)).filter(v=>!isNaN(v));
+          const h=items.map(r=>Number(r.kelembaban)).filter(v=>!isNaN(v));
+          return [tgl,
+            s.length?String(Math.max(...s)):"-",s.length?String(Math.min(...s)):"-",
+            h.length?(h.reduce((x,v)=>x+v,0)/h.length).toFixed(0)+"%":"-",
+            a.length?String(Math.max(...a)):"-",
+            String(items.length),
+            String(items.filter(r=>r.status==="KEBAKARAN").length)];
+        });
+      doc.autoTable({
+        startY:curY,
+        head:[["Tanggal","Max Suhu","Min Suhu","Kel. Rata","Max Asap","Total","Kebakaran"]],
+        body: r3.length?r3:[["Belum ada data","","","","","",""]],
+        margin:{left:mL,right:mR},tableWidth:cW,
+        headStyles:{fillColor:[22,101,52],textColor:[255,255,255],fontStyle:"bold",fontSize:8,cellPadding:{top:4,bottom:4,left:3,right:3}},
+        styles:{lineColor:[226,232,240],lineWidth:0.2,cellPadding:{top:3.5,bottom:3.5,left:3,right:3},fontSize:8.5,textColor:[51,65,85]},
+        alternateRowStyles:{fillColor:[240,253,244]},
+        didParseCell(d){
+          if(d.section==="body"&&d.column.index===6&&Number(d.cell.raw)>0){
+            d.cell.styles.textColor=[153,27,27];
+            d.cell.styles.fontStyle="bold";
+          }
+        },
+      });
+
+    } else {
+      doc.autoTable({
+        startY:curY,
+        head:[["Waktu","Suhu Min","Suhu Max","Asap Min","Asap Max","Diubah Oleh"]],
+        body: allThreshold.length
+          ? allThreshold.map(r=>[fmtWaktu(r),r.suhuMin??"-",r.suhuMax??"-",r.asapMin??"-",r.asapMax??"-",r.oleh??"-"])
+          : [["Belum ada data","","","","",""]],
+        margin:{left:mL,right:mR},tableWidth:cW,
+        headStyles:{fillColor:[88,28,135],textColor:[255,255,255],fontStyle:"bold",fontSize:8,cellPadding:{top:4,bottom:4,left:3,right:3}},
+        styles:{lineColor:[226,232,240],lineWidth:0.2,cellPadding:{top:3.5,bottom:3.5,left:3,right:3},fontSize:8.5,textColor:[51,65,85]},
+        alternateRowStyles:{fillColor:[250,245,255]},
+      });
+    }
+
+    // ── Footer ──
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let p=1; p<=totalPages; p++) {
+      doc.setPage(p);
+      doc.setFont("helvetica","normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(148,163,184);
+      doc.text(`Sistem Deteksi Kebakaran — IoT Fuzzy Sugeno  |  ${LAP_TITLES[nomor]}`, mL, pageH-8);
+      doc.text(`Halaman ${p}/${totalPages}`, pageW-mR, pageH-8, { align:"right" });
+    }
+
+    const fname = `Laporan_${nomor}_${LAP_TITLES[nomor].replace(/[^a-zA-Z0-9]/g,"_")}_${now.toISOString().slice(0,10)}.pdf`;
+    doc.save(fname);
+
+  } catch(e) {
+    showToast("Gagal cetak PDF: "+e.message, "err");
+    console.error("[PDF]", e);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origHTML;
+  }
+}
+
+// ── Export Excel lap 1 ─────────────────────────────────────────
+function exportExcelLap1() {
+  if (typeof XLSX === "undefined") { showToast("Library Excel belum siap","err"); return; }
+  const data = lap1Filtered.length ? lap1Filtered : allHistory;
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data.map(r => ({
+    Tanggal: getTanggal(r), Jam: getJam(r),
+    "Suhu (°C)": r.suhu??"-", "Kelembaban (%)": r.kelembaban??"-",
+    "Asap (ppm)": r.asap??"-", Api: r.api>=1?"Ya":"Tidak",
+    Fuzzy: r.fuzzy??"-", Status: r.status,
+  })));
+  XLSX.utils.book_append_sheet(wb, ws, "Log Sensor");
+  XLSX.writeFile(wb, `LogSensor_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ════════════════════════════════════════
+// FIREBASE LISTENERS
+// ════════════════════════════════════════
+function listenHistory() {
+  db.ref("history").on("value", snap => {
+    allHistory = snap.exists()
+      ? Object.entries(snap.val()).map(([id,v])=>({id,...v})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))
+      : [];
+    renderStats();
+    lap1Filtered = [...allHistory];
+    renderLap1(lap1Filtered);
+    renderLap2();
+    renderLap3();
+  });
+}
+function listenThreshold() {
+  db.ref("thresholdLog").on("value", snap => {
+    allThreshold = snap.exists()
+      ? Object.entries(snap.val()).map(([id,v])=>({id,...v})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))
+      : [];
+    renderLap4();
+  });
+}
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+requireAuth((profile) => {
+  _printNama = profile.nama;
+  document.getElementById("hdr-nama").textContent = profile.nama;
+  document.getElementById("hdr-date").textContent = new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+  document.getElementById("l1-to").value = new Date().toISOString().slice(0,10);
+  listenHistory();
+  listenThreshold();
+});
+</script>
+</body>
+</html>

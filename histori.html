@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Histori Data — IoT Fire Detection</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body style="background:#0F172A;">
+
+<div id="loading-screen">
+  <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#ef4444,#f97316);display:flex;align-items:center;justify-content:center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
+  <svg class="animate-spin w-5 h-5 mt-2" style="color:#f87171;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+  <p style="color:rgba(255,255,255,0.4);font-size:14px;">Memuat sistem...</p>
+</div>
+
+<aside id="sidebar"></aside>
+
+<main id="main-content" class="p-6 space-y-6">
+  <div>
+    <h1 class="text-white text-2xl font-bold">Histori Data</h1>
+    <p id="rec-count" style="color:rgba(255,255,255,0.4);font-size:14px;margin-top:2px;">0 rekaman ditemukan</p>
+  </div>
+
+  <div class="glass p-5 space-y-4">
+    <!-- Filter bar -->
+    <div class="flex flex-wrap gap-3">
+      <div class="relative flex-1" style="min-width:200px;">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color:rgba(255,255,255,0.3);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="search-inp" type="text" placeholder="Cari data..." class="inp pl-10" oninput="applyFilter()" />
+      </div>
+      <select id="filter-status" class="inp" style="width:auto;padding:10px 14px;" onchange="applyFilter()">
+        <option value="SEMUA">SEMUA</option>
+        <option value="AMAN">AMAN</option>
+        <option value="WASPADA">WASPADA</option>
+        <option value="BAHAYA">BAHAYA</option>
+        <option value="KEBAKARAN">KEBAKARAN</option>
+      </select>
+      <input id="filter-from" type="date" class="inp" style="width:auto;color:rgba(255,255,255,0.6);" onchange="applyFilter()" />
+      <input id="filter-to"   type="date" class="inp" style="width:auto;color:rgba(255,255,255,0.6);" onchange="applyFilter()" />
+      <button onclick="exportExcel()" class="btn-excel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Excel
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('tanggal')" style="cursor:pointer;">Tanggal ↕</th>
+            <th onclick="sortBy('jam')" style="cursor:pointer;">Jam ↕</th>
+            <th onclick="sortBy('suhu')" style="cursor:pointer;">Suhu (°C) ↕</th>
+            <th onclick="sortBy('kelembaban')" style="cursor:pointer;">Kelembaban (%) ↕</th>
+            <th onclick="sortBy('asap')" style="cursor:pointer;">Asap (ppm) ↕</th>
+            <th>Api</th>
+            <th onclick="sortBy('fuzzy')" style="cursor:pointer;">Fuzzy ↕</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="hist-tbody">
+          <tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px;">Tidak ada data</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="hidden flex items-center justify-between">
+      <p id="page-info" style="color:rgba(255,255,255,0.3);font-size:12px;"></p>
+      <div id="page-btns" class="flex gap-2"></div>
+    </div>
+  </div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/fuzzy.js"></script>
+<script src="js/common.js"></script>
+<script>
+let allData = [], filtered = [], page = 1, sortCol = "timestamp", sortAsc = false;
+const PER_PAGE = 10;
+
+function sortBy(col) {
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = false; }
+  applyFilter();
+}
+
+function applyFilter() {
+  const search = document.getElementById("search-inp").value.toUpperCase();
+  const status = document.getElementById("filter-status").value;
+  const from   = document.getElementById("filter-from").value;
+  const to     = document.getElementById("filter-to").value;
+  filtered = allData.filter(d => {
+    if (search && !d.status.includes(search) && !d.tanggal.includes(search) && !d.jam.includes(search)) return false;
+    if (status !== "SEMUA" && d.status !== status) return false;
+    const iso = new Date(d.timestamp).toISOString().slice(0,10);
+    if (from && iso < from) return false;
+    if (to && iso > to) return false;
+    return true;
+  });
+  filtered.sort((a, b) => {
+    const av = a[sortCol], bv = b[sortCol];
+    return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+  });
+  page = 1;
+  document.getElementById("rec-count").textContent = `${filtered.length} rekaman ditemukan`;
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById("hist-tbody");
+  const total = Math.ceil(filtered.length / PER_PAGE);
+  const slice = filtered.slice((page-1)*PER_PAGE, page*PER_PAGE);
+
+  if (slice.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px;">Tidak ada data</td></tr>`;
+    document.getElementById("pagination").classList.add("hidden");
+    return;
+  }
+
+  tbody.innerHTML = slice.map(d => `
+    <tr>
+      <td style="color:rgba(255,255,255,0.7);">${d.tanggal}</td>
+      <td style="color:rgba(255,255,255,0.7);">${d.jam}</td>
+      <td style="color:#f87171;">${d.suhu}</td>
+      <td style="color:#60a5fa;">${d.kelembaban}</td>
+      <td style="color:#fb923c;">${d.asap}</td>
+      <td><span style="color:${d.api ? '#f87171':'#34d399'};">${d.api ? "Ya" : "Tidak"}</span></td>
+      <td style="color:#c084fc;font-family:monospace;">${d.fuzzy}</td>
+      <td>${statusBadge(d.status)}</td>
+    </tr>
+  `).join("");
+
+  // Pagination
+  if (total > 1) {
+    document.getElementById("pagination").classList.remove("hidden");
+    document.getElementById("page-info").textContent = `Halaman ${page} dari ${total}`;
+    const start = Math.max(1, Math.min(page-2, total-4));
+    let btns = `<button onclick="goPage(${Math.max(1,page-1)})" ${page===1?'disabled':''} style="padding:6px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);cursor:pointer;">◀</button>`;
+    for (let i=start; i<=Math.min(start+4,total); i++) {
+      btns += `<button onclick="goPage(${i})" style="width:32px;height:32px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;${i===page?'background:#ef4444;color:#fff;border:none;':'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);'}">${i}</button>`;
+    }
+    btns += `<button onclick="goPage(${Math.min(total,page+1)})" ${page===total?'disabled':''} style="padding:6px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);cursor:pointer;">▶</button>`;
+    document.getElementById("page-btns").innerHTML = btns;
+  } else {
+    document.getElementById("pagination").classList.add("hidden");
+  }
+}
+
+function goPage(p) { page = p; renderTable(); }
+
+function exportExcel() {
+  const ws = XLSX.utils.json_to_sheet(filtered.map(d => ({
+    Tanggal: d.tanggal, Jam: d.jam, Suhu: d.suhu, Kelembaban: d.kelembaban,
+    Asap: d.asap, Api: d.api ? "Terdeteksi" : "Tidak Ada",
+    "Nilai Fuzzy": d.fuzzy, Status: d.status,
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Histori");
+  XLSX.writeFile(wb, `Laporan_Kebakaran_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+requireAuth(() => {
+  db.ref("history").on("value", snap => {
+    if (!snap.exists()) { allData=[]; applyFilter(); return; }
+    allData = Object.entries(snap.val()).map(([id,v]) => ({id,...v}));
+    allData.sort((a,b) => b.timestamp - a.timestamp);
+    applyFilter();
+  });
+});
+</script>
+</body>
+</html>

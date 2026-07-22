@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setup Admin — IoT Fire Detection</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body style="background:#0F172A;">
+<div class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md animate-fade-in">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style="background:linear-gradient(135deg,#ef4444,#f97316);box-shadow:0 0 40px rgba(239,68,68,0.4);">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h1 class="text-white text-2xl font-bold">Setup Admin</h1>
+      <p style="color:rgba(255,255,255,0.4);" class="text-sm mt-1">Buat akun administrator pertama</p>
+    </div>
+
+    <div id="setup-done" class="hidden card text-center p-8">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" style="margin:0 auto 16px;"><polyline points="20 6 9 17 4 12"/></svg>
+      <p class="text-white font-semibold text-lg mb-2">Setup Berhasil!</p>
+      <p style="color:rgba(255,255,255,0.4);font-size:14px;margin-bottom:20px;">Akun admin berhasil dibuat. Silakan login.</p>
+      <a href="index.html" class="btn-primary inline-flex">Pergi ke Halaman Login</a>
+    </div>
+
+    <div id="setup-form-wrap" class="card p-8">
+      <h2 class="text-white font-semibold text-lg mb-6">Buat Akun Admin</h2>
+      <form id="setup-form" class="space-y-4">
+        <div>
+          <label style="color:rgba(255,255,255,0.6);font-size:12px;display:block;margin-bottom:6px;">Nama Lengkap</label>
+          <input id="s-nama" type="text" class="inp" placeholder="Nama Administrator" required />
+        </div>
+        <div>
+          <label style="color:rgba(255,255,255,0.6);font-size:12px;display:block;margin-bottom:6px;">Email</label>
+          <input id="s-email" type="email" class="inp" placeholder="admin@email.com" required />
+        </div>
+        <div>
+          <label style="color:rgba(255,255,255,0.6);font-size:12px;display:block;margin-bottom:6px;">Password (min. 6 karakter)</label>
+          <input id="s-pass" type="password" class="inp" placeholder="••••••••" required minlength="6" />
+        </div>
+        <div id="setup-err" class="hidden text-xs rounded-xl px-3 py-2" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;"></div>
+        <button type="submit" id="setup-btn" class="btn-primary w-full justify-center">
+          <svg id="setup-spin" class="hidden animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          <span>Buat Akun Admin</span>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script>
+document.getElementById("setup-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nama  = document.getElementById("s-nama").value.trim();
+  const email = document.getElementById("s-email").value.trim();
+  const pass  = document.getElementById("s-pass").value;
+  const err   = document.getElementById("setup-err");
+  const btn   = document.getElementById("setup-btn");
+  const spin  = document.getElementById("setup-spin");
+  err.classList.add("hidden");
+  btn.disabled=true; spin.classList.remove("hidden");
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await db.ref(`users/${cred.user.uid}`).set({
+      uid: cred.user.uid, email, nama, role:"admin", aktif:true,
+      loginTerakhir: Date.now(),
+    });
+    document.getElementById("setup-form-wrap").classList.add("hidden");
+    document.getElementById("setup-done").classList.remove("hidden");
+  } catch(ex) {
+    const msgs={ "auth/email-already-in-use":"Email sudah digunakan", "auth/weak-password":"Password terlalu lemah" };
+    err.textContent = msgs[ex.code] || "Gagal: "+ex.message;
+    err.classList.remove("hidden");
+    btn.disabled=false; spin.classList.add("hidden");
+  }
+});
+</script>
+</body>
+</html>
